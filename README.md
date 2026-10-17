@@ -91,7 +91,7 @@ columns:
 | `end` | For `range`: the field with the end, shown as `16/10 19:29–19:47` |
 | `template` | For `template`: `{soc_start:0}→{soc_end:0}%` fills fields, `:N` sets decimals |
 | `map` | For `map`: value → text, or value → `{ label, icon, color }` |
-| `segments` | For `stack`: `[{ field, color, label }]`, drawn as a small bar of shares with the numbers under it |
+| `segments` | For `stack`: `[{ field, color, label }]`, drawn as a small bar of shares with the numbers under it; `unit` (e.g. `%`) follows each number |
 | `colors` | Steps `[{ max, color }, …, { color }]`: the first whose `max` the value does not exceed gives a dot (or a pill with `style: pill`) |
 | `align` | `start`, `center` or `end`. Numbers, percents and durations default to `end` |
 | `primary` | On narrow cards, the column used as each card's title (first column by default) |

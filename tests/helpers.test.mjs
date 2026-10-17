@@ -73,6 +73,8 @@ test('cells format numbers, ranges, maps and stacks', () => {
   const stack = formatCell(row, { format: 'stack', segments: [{ field: 'solar', color: 'amber' }, { field: 'pw', color: 'green' }, { field: 'grid', color: 'red' }] }, ctx);
   assert.deepEqual(stack.segments.map((s) => s.value), [73, 27, 0]);
   assert.equal(formatCell({}, { format: 'stack', segments: [{ field: 'solar' }] }, ctx).text, '—');
+  const withPct = formatCell(row, { format: 'stack', unit: '%', segments: [{ field: 'solar' }, { field: 'pw' }] }, ctx);
+  assert.equal(withPct.text, '73% · 27%');
 
   assert.equal(formatCell({}, { field: 'km', format: 'number' }, ctx).text, '—');
   assert.equal(formatCell({ km: null }, { field: 'km', format: 'number', empty: 'n/a' }, ctx).text, 'n/a');

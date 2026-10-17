@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.1 - 2026-10-17
+
+- `stack` columns take a `unit`, shown after each number under the bar — `73% 27% 0%` instead of
+  three bare numbers that read as anything
+
 ## 0.1.0 - 2026-10-17
 
 - First release. A table from rows kept in an entity's attributes — a list of objects in one

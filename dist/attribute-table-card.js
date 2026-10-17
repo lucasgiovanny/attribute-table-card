@@ -7,7 +7,7 @@
 
 const CARD_TYPE = 'attribute-table-card';
 const EDITOR_TYPE = 'attribute-table-card-editor';
-const CARD_VERSION = '0.1.0';
+const CARD_VERSION = '0.1.1';
 const NARROW_PX = 420;
 // Lets the helpers be imported by the Node tests, where there is no DOM.
 const ElementBase = typeof HTMLElement === 'undefined' ? class {} : HTMLElement;
@@ -173,7 +173,8 @@ export function formatCell(row, column, ctx) {
     }));
     if (!segments.some((segment) => segment.value > 0)) return { ...cell, text: '—' };
     cell.segments = segments;
-    cell.text = segments.map((segment) => formatNumber(segment.value, ctx, 0)).join(' · ');
+    cell.unit = column.unit || '';
+    cell.text = segments.map((segment) => withUnit(formatNumber(segment.value, ctx, 0), column.unit)).join(' · ');
     return cell;
   }
   if (missing) return { ...cell, text: column.empty ?? '—' };
@@ -357,7 +358,7 @@ class AttributeTableCard extends ElementBase {
         .map((segment) => `<span style="width:${(segment.value / total) * 100}%;background:${cssColor(segment.color)}" title="${escapeHtml(segment.label)}"></span>`)
         .join('');
       const legend = cell.segments
-        .map((segment) => `<span title="${escapeHtml(segment.label)}"><b style="color:${cssColor(segment.color)}">${Math.round(segment.value)}</b></span>`)
+        .map((segment) => `<span title="${escapeHtml(segment.label)}"><b style="color:${cssColor(segment.color)}">${Math.round(segment.value)}${escapeHtml(cell.unit || '')}</b></span>`)
         .join('');
       return `<div class="stack"><div class="bar">${bar}</div><div class="legend">${legend}</div></div>`;
     }
