@@ -7,7 +7,7 @@
 
 const CARD_TYPE = 'attribute-table-card';
 const EDITOR_TYPE = 'attribute-table-card-editor';
-const CARD_VERSION = '0.1.1';
+const CARD_VERSION = '0.1.2';
 const NARROW_PX = 420;
 // Lets the helpers be imported by the Node tests, where there is no DOM.
 const ElementBase = typeof HTMLElement === 'undefined' ? class {} : HTMLElement;
@@ -255,7 +255,7 @@ const STYLES = `
   }
   .cell { padding: 8px 6px; border-top: 1px solid var(--atc-divider, rgba(127, 127, 127, 0.16)); white-space: nowrap; display: flex; align-items: center; gap: 6px; min-width: 0; }
   .end { justify-content: flex-end; text-align: end; font-variant-numeric: tabular-nums; }
-  .center { justify-content: center; }
+  .center { justify-content: center; text-align: center; }
   .dot { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; }
   .pill { padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 500; display: inline-flex; align-items: center; gap: 4px; }
   .cell ha-icon { --mdc-icon-size: 16px; flex: 0 0 auto; }

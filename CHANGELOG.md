@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2 - 2026-10-17
+
+- Centred columns centre their header too; only the cells moved before
+
 ## 0.1.1 - 2026-10-17
 
 - `stack` columns take a `unit`, shown after each number under the bar — `73% 27% 0%` instead of
