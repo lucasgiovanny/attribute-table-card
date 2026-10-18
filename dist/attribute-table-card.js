@@ -7,7 +7,7 @@
 
 const CARD_TYPE = 'attribute-table-card';
 const EDITOR_TYPE = 'attribute-table-card-editor';
-const CARD_VERSION = '0.1.2';
+const CARD_VERSION = '0.2.0';
 const NARROW_PX = 420;
 // Lets the helpers be imported by the Node tests, where there is no DOM.
 const ElementBase = typeof HTMLElement === 'undefined' ? class {} : HTMLElement;
@@ -17,6 +17,7 @@ const STRINGS = {
     more: 'Show {n} more',
     less: 'Show less',
     empty: 'Nothing yet',
+    close: 'Close',
     missing_entity: 'Set an entity',
     missing_columns: 'Add at least one column',
     no_rows: 'No rows found in {where}'
@@ -25,6 +26,7 @@ const STRINGS = {
     more: 'Mostrar mais {n}',
     less: 'Mostrar menos',
     empty: 'Ainda não há nada',
+    close: 'Fechar',
     missing_entity: 'Defina uma entidade',
     missing_columns: 'Adicione pelo menos uma coluna',
     no_rows: 'Nenhuma linha em {where}'
@@ -235,6 +237,13 @@ function cssColor(name) {
   return /^(#|rgb|hsl|var\()/.test(name) ? name : `var(--${name}-color, ${name})`;
 }
 
+// Columns shown in a row's details: `details: true` reuses the table columns, a list brings its own.
+export function detailColumns(config) {
+  if (!config || !config.details) return null;
+  if (Array.isArray(config.details)) return config.details.length ? config.details : null;
+  return Array.isArray(config.columns) && config.columns.length ? config.columns : null;
+}
+
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
@@ -253,7 +262,20 @@ const STYLES = `
     font-size: 11px; font-weight: 500; letter-spacing: 0.02em; color: var(--secondary-text-color);
     white-space: nowrap;
   }
-  .cell { padding: 8px 6px; border-top: 1px solid var(--atc-divider, rgba(127, 127, 127, 0.16)); white-space: nowrap; display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .cell { padding: 8px 6px; border-top: 1px solid var(--atc-divider, rgba(127, 127, 127, 0.16)); white-space: nowrap; display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; }
+  .txt { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .clickable [data-r] { cursor: pointer; }
+  .clickable .cell.hover { background: rgba(127, 127, 127, 0.08); }
+  .overlay { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(0, 0, 0, 0.45); }
+  .dialog { width: min(480px, 100%); max-height: 85vh; overflow: auto; box-sizing: border-box; padding: 18px 20px 14px; border-radius: 16px;
+    background: var(--ha-card-background, var(--card-background-color, #1c1f24)); color: var(--primary-text-color); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35); }
+  .dialog h3 { margin: 0 0 12px; font-size: 16px; font-weight: 600; }
+  .dialog dl { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; margin: 0; font-size: 14px; }
+  .dialog dt { color: var(--secondary-text-color); font-size: 13px; }
+  .dialog dd { margin: 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; overflow-wrap: anywhere; }
+  .dialog dd .txt { overflow: visible; white-space: normal; }
+  .dialog dd ha-icon { --mdc-icon-size: 16px; }
+  .dialog .actions { display: flex; justify-content: flex-end; margin-top: 14px; }
   .end { justify-content: flex-end; text-align: end; font-variant-numeric: tabular-nums; }
   .center { justify-content: center; text-align: center; }
   .dot { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; }
@@ -368,7 +390,7 @@ class AttributeTableCard extends ElementBase {
       return `<span class="pill" style="color:${color};background:color-mix(in srgb, ${color} 18%, transparent)">${icon}${escapeHtml(cell.text)}</span>`;
     }
     const dot = cell.color && !cell.icon ? `<span class="dot" style="background:${cssColor(cell.color)}"></span>` : '';
-    return `${icon}${escapeHtml(cell.text)}${dot}`;
+    return `${icon}<span class="txt">${escapeHtml(cell.text)}</span>${dot}`;
   }
 
   _tableHtml(rows, columns, ctx) {
@@ -377,8 +399,11 @@ class AttributeTableCard extends ElementBase {
       .map((column) => `<div class="head ${cellAlign(column)}">${escapeHtml(column.name ?? column.field ?? '')}</div>`)
       .join('');
     const body = rows
-      .map((row) => columns
-        .map((column) => `<div class="cell ${cellAlign(column)}">${this._cellHtml(formatCell(row, column, ctx), column)}</div>`)
+      .map((row, r) => columns
+        .map((column) => {
+          const cell = formatCell(row, column, ctx);
+          return `<div class="cell ${cellAlign(column)}" data-r="${r}" title="${escapeHtml(cell.text || '')}">${this._cellHtml(cell, column)}</div>`;
+        })
         .join(''))
       .join('');
     return `<div class="table" style="grid-template-columns:${template}">${head}${body}</div>`;
@@ -386,13 +411,13 @@ class AttributeTableCard extends ElementBase {
 
   _cardsHtml(rows, columns, ctx) {
     const primaryIndex = Math.max(columns.findIndex((column) => column.primary), 0);
-    return `<div class="cards">${rows.map((row) => {
+    return `<div class="cards">${rows.map((row, r) => {
       const primary = this._cellHtml(formatCell(row, columns[primaryIndex], ctx), columns[primaryIndex]);
       const facts = columns
         .filter((_, index) => index !== primaryIndex)
         .map((column) => `<div class="fact"><span class="label">${escapeHtml(column.name ?? column.field ?? '')}</span>${this._cellHtml(formatCell(row, column, ctx), column)}</div>`)
         .join('');
-      return `<div class="row-card"><div class="primary">${primary}</div><div class="facts">${facts}</div></div>`;
+      return `<div class="row-card" data-r="${r}"><div class="primary">${primary}</div><div class="facts">${facts}</div></div>`;
     }).join('')}</div>`;
   }
 
@@ -422,7 +447,8 @@ class AttributeTableCard extends ElementBase {
           ? `<button class="more">${this._expanded ? t(ctx.lang, 'less') : t(ctx.lang, 'more', { n: hidden })}</button>`
           : '';
         const style = config.max_height ? ` style="max-height:${escapeHtml(config.max_height)}"` : '';
-        content = `<div class="body"${style}>${list}</div>${toggle}`;
+        this._shown = shown;
+        content = `<div class="body${detailColumns(config) ? ' clickable' : ''}"${style}>${list}</div>${toggle}`;
       }
     }
 
@@ -431,6 +457,43 @@ class AttributeTableCard extends ElementBase {
       this._expanded = !this._expanded;
       this._render();
     });
+    const body = this.shadowRoot.querySelector('.body.clickable');
+    if (body) {
+      body.addEventListener('click', (event) => {
+        const target = event.target.closest('[data-r]');
+        if (target) this._openDetails(this._shown[Number(target.dataset.r)]);
+      });
+      // A table row is a set of grid cells, so the hover is drawn on all cells of the row.
+      body.addEventListener('mouseover', (event) => {
+        const target = event.target.closest('.cell[data-r]');
+        const r = target ? target.dataset.r : null;
+        body.querySelectorAll('.cell.hover').forEach((cell) => { if (cell.dataset.r !== r) cell.classList.remove('hover'); });
+        if (r !== null) body.querySelectorAll(`.cell[data-r="${r}"]`).forEach((cell) => cell.classList.add('hover'));
+      });
+      body.addEventListener('mouseleave', () => body.querySelectorAll('.cell.hover').forEach((cell) => cell.classList.remove('hover')));
+    }
+  }
+
+  _openDetails(row) {
+    const columns = detailColumns(this._config);
+    if (!row || !columns) return;
+    const ctx = this._context();
+    const primary = this._config.columns.find((column) => column.primary) || this._config.columns[0];
+    const title = primary ? formatCell(row, primary, ctx).text : '';
+    const items = columns
+      .map((column) => `<dt>${escapeHtml(column.name ?? column.field ?? '')}</dt><dd>${this._cellHtml(formatCell(row, column, ctx), column)}</dd>`)
+      .join('');
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `<div class="dialog" role="dialog" aria-modal="true" aria-label="${escapeHtml(title)}"><h3>${escapeHtml(title)}</h3><dl>${items}</dl>
+      <div class="actions"><button class="more" type="button">${t(ctx.lang, 'close')}</button></div></div>`;
+    const close = () => { overlay.remove(); document.removeEventListener('keydown', onKey); };
+    const onKey = (event) => { if (event.key === 'Escape') close(); };
+    overlay.addEventListener('click', (event) => { if (event.target === overlay) close(); });
+    overlay.querySelector('.actions button').addEventListener('click', close);
+    document.addEventListener('keydown', onKey);
+    this.shadowRoot.appendChild(overlay);
+    overlay.querySelector('.actions button').focus();
   }
 }
 

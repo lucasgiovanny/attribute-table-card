@@ -78,6 +78,7 @@ columns:
 | `title`, `icon` | — | Header |
 | `empty` | *Nothing yet* | Text when there are no rows |
 | `narrow_width` | `420` | Below this width (px) rows are drawn as small cards |
+| `details` | — | `true`: tapping a row opens a popup with every column in full; a list of columns (same options as `columns`) shows those instead, so the popup can carry fields the table leaves out |
 
 ### Columns
 

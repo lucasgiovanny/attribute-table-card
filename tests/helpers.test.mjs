@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  extractRows, sortRows, toDate, formatDuration, fillTemplate, pickColor, formatCell, cellAlign, resolveLanguage, t
+  extractRows, sortRows, toDate, formatDuration, fillTemplate, pickColor, formatCell, cellAlign, resolveLanguage, t, detailColumns
 } from '../dist/attribute-table-card.js';
 
 const ctx = { lang: 'pt', locale: 'pt-PT', timeZone: 'Europe/Lisbon' };
@@ -90,4 +90,12 @@ test('language follows Home Assistant', () => {
   assert.equal(resolveLanguage({ locale: { language: 'pt-BR' } }), 'pt');
   assert.equal(resolveLanguage({ language: 'de' }), 'en');
   assert.equal(t('pt', 'more', { n: 5 }), 'Mostrar mais 5');
+});
+
+test('row details reuse the table columns or bring their own', () => {
+  const columns = [{ field: 'a' }];
+  assert.equal(detailColumns({ columns }), null);
+  assert.deepEqual(detailColumns({ columns, details: true }), columns);
+  assert.deepEqual(detailColumns({ columns, details: [{ field: 'b' }] }), [{ field: 'b' }]);
+  assert.equal(detailColumns({ columns, details: [] }), null);
 });
