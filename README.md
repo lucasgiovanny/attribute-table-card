@@ -89,7 +89,7 @@ columns:
 | `format` | `text` (default), `number`, `percent`, `duration`, `date`, `time`, `datetime`, `range`, `template`, `map`, `stack` |
 | `decimals`, `unit` | For `number`; `percent` adds `%` itself |
 | `unit_in` | For `duration`: the field is in `min` (default), `s` or `h` |
-| `end` | For `range`: the field with the end, shown as `16/10 19:29–19:47` |
+| `end` | For `range`: the field with the end |
 | `template` | For `template`: `{soc_start:0}→{soc_end:0}%` fills fields, `:N` sets decimals |
 | `map` | For `map`: value → text, or value → `{ label, icon, color }` |
 | `segments` | For `stack`: `[{ field, color, label }]`, drawn as a small bar of shares with the numbers under it; `unit` (e.g. `%`) follows each number |
@@ -99,6 +99,11 @@ columns:
 | `empty` | Text for a missing value (default `—`) |
 
 Colours are Home Assistant colour names (`green`, `amber`, `red`, `blue`, …) or any CSS colour.
+
+Dates (`date`, `time`, `datetime`, `range`) are drawn as a day line and a time line, each with a
+small icon: the day reads *Today*, *Yesterday*, the weekday within the last week (`Thu, 15/10`) or
+the date, and a range shows `19:14 → 09:35`, naming both days when it crosses midnight
+(`Yesterday → today`). The row details show the full dates.
 
 Timestamps may be seconds or milliseconds since the epoch, or ISO strings. Dates and numbers follow
 the Home Assistant language and time zone.

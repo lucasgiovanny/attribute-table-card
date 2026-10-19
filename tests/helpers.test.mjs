@@ -1,10 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  formatWhen,
   extractRows, sortRows, toDate, formatDuration, fillTemplate, pickColor, formatCell, cellAlign, resolveLanguage, t, detailColumns
 } from '../dist/attribute-table-card.js';
 
-const ctx = { lang: 'pt', locale: 'pt-PT', timeZone: 'Europe/Lisbon' };
+const ctx = { lang: 'pt', locale: 'pt-PT', timeZone: 'Europe/Lisbon', now: new Date('2026-11-30T12:00:00Z') };
 
 test('rows come from a list attribute, an object attribute, or every object attribute', () => {
   const trips = { attributes: { recent_trips: [{ km: 1 }, { km: 2 }, 'noise'], friendly_name: 'x' } };
@@ -64,8 +65,10 @@ test('cells format numbers, ranges, maps and stacks', () => {
   assert.equal(formatCell(row, { field: 'km', format: 'number', decimals: 1, unit: 'km' }, ctx).text, '9,9 km');
   assert.equal(formatCell(row, { field: 'pct', format: 'percent' }, ctx).text, '72%');
   assert.equal(formatCell(row, { field: 'minutes', format: 'duration' }, ctx).text, '1 h 46');
-  assert.equal(formatCell(row, { field: 'start', format: 'range', end: 'end' }, ctx).text, '16/10 19:29–19:47');
-  assert.equal(formatCell(row, { field: 'start', format: 'date' }, ctx).text, '16/10');
+  const range = formatCell(row, { field: 'start', format: 'range', end: 'end' }, ctx);
+  assert.deepEqual(range.when, { day: '16/10', time: '19:29 → 19:47' });
+  assert.equal(range.long, 'sex, 16/10/2026 · 19:29 → 19:47');
+  assert.deepEqual(formatCell(row, { field: 'start', format: 'date' }, ctx).when, { day: '16/10', time: '' });
 
   const mapped = formatCell(row, { field: 'type', format: 'map', map: { DC: { label: 'DC', icon: 'mdi:flash', color: 'amber' } } }, ctx);
   assert.deepEqual([mapped.text, mapped.icon, mapped.color], ['DC', 'mdi:flash', 'amber']);
@@ -98,4 +101,25 @@ test('row details reuse the table columns or bring their own', () => {
   assert.deepEqual(detailColumns({ columns, details: true }), columns);
   assert.deepEqual(detailColumns({ columns, details: [{ field: 'b' }] }), [{ field: 'b' }]);
   assert.equal(detailColumns({ columns, details: [] }), null);
+});
+
+test('dates read as today, yesterday or the weekday in the last week', () => {
+  const near = { ...ctx, now: new Date('2026-10-19T09:00:00Z') };
+  const at = (iso, end) => formatWhen(new Date(iso), end ? new Date(end) : null, near, 'range');
+  assert.deepEqual([at('2026-10-19T07:45:00Z').day, at('2026-10-19T07:45:00Z').time], ['Hoje', '08:45']);
+  assert.equal(at('2026-10-18T10:00:00Z').day, 'Ontem');
+  assert.equal(at('2026-10-15T10:00:00Z').day, 'qui, 15/10');
+  assert.equal(at('2026-10-11T10:00:00Z').day, '11/10');
+  assert.equal(at('2026-10-20T10:00:00Z').day, 'Amanhã');
+});
+
+test('a range across midnight names both days', () => {
+  const near = { ...ctx, now: new Date('2026-10-19T09:00:00Z') };
+  const night = formatWhen(new Date('2026-10-18T18:14:00Z'), new Date('2026-10-19T08:35:00Z'), near, 'range');
+  assert.deepEqual([night.day, night.time], ['Ontem → hoje', '19:14 → 09:35']);
+  assert.equal(night.long, 'dom, 18/10/2026 · 19:14 → seg, 19/10/2026 · 09:35');
+  const old = formatWhen(new Date('2026-10-02T21:00:00Z'), new Date('2026-10-03T07:00:00Z'), near, 'range');
+  assert.equal(old.day, '02 → 03/10');
+  const months = formatWhen(new Date('2026-09-30T21:00:00Z'), new Date('2026-10-01T07:00:00Z'), near, 'range');
+  assert.equal(months.day, '30/09 → 01/10');
 });

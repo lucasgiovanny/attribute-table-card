@@ -7,7 +7,7 @@
 
 const CARD_TYPE = 'attribute-table-card';
 const EDITOR_TYPE = 'attribute-table-card-editor';
-const CARD_VERSION = '0.2.0';
+const CARD_VERSION = '0.3.0';
 const NARROW_PX = 420;
 // Lets the helpers be imported by the Node tests, where there is no DOM.
 const ElementBase = typeof HTMLElement === 'undefined' ? class {} : HTMLElement;
@@ -18,6 +18,9 @@ const STRINGS = {
     less: 'Show less',
     empty: 'Nothing yet',
     close: 'Close',
+    today: 'Today',
+    yesterday: 'Yesterday',
+    tomorrow: 'Tomorrow',
     missing_entity: 'Set an entity',
     missing_columns: 'Add at least one column',
     no_rows: 'No rows found in {where}'
@@ -27,6 +30,9 @@ const STRINGS = {
     less: 'Mostrar menos',
     empty: 'Ainda não há nada',
     close: 'Fechar',
+    today: 'Hoje',
+    yesterday: 'Ontem',
+    tomorrow: 'Amanhã',
     missing_entity: 'Defina uma entidade',
     missing_columns: 'Adicione pelo menos uma coluna',
     no_rows: 'Nenhuma linha em {where}'
@@ -119,11 +125,56 @@ function withUnit(text, unit) {
 
 function dateParts(date, ctx) {
   const parts = new Intl.DateTimeFormat(ctx.locale || 'en', {
-    timeZone: ctx.timeZone || undefined,
+    timeZone: ctx.timeZone || undefined, weekday: 'short', year: 'numeric',
     day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
   }).formatToParts(date);
   const get = (type) => parts.find((part) => part.type === type)?.value || '';
-  return { date: `${get('day')}/${get('month')}`, time: `${get('hour')}:${get('minute')}` };
+  return {
+    date: `${get('day')}/${get('month')}`,
+    time: `${get('hour')}:${get('minute')}`,
+    year: get('year'),
+    // Three letters, so Portuguese reads "sex" rather than "sexta".
+    weekday: get('weekday').replace(/\.$/, '').slice(0, 3),
+    // Calendar day number in the Home Assistant time zone, for "today", "yesterday" and the weekday.
+    dayNumber: Date.UTC(Number(get('year')), Number(get('month')) - 1, Number(get('day'))) / 86400000
+  };
+}
+
+// "Today", "Yesterday", the weekday within the last week ("Wed, 15/10"), or just the date.
+export function dayLabel(parts, ctx) {
+  const today = dateParts(ctx.now || new Date(), ctx).dayNumber;
+  const ago = today - parts.dayNumber;
+  if (ago === 0) return t(ctx.lang, 'today');
+  if (ago === 1) return t(ctx.lang, 'yesterday');
+  if (ago === -1) return t(ctx.lang, 'tomorrow');
+  if (ago > 1 && ago < 7) return `${parts.weekday}, ${parts.date}`;
+  return parts.date;
+}
+
+// A start (and optional end) as a day line and a time line, plus one-line and full texts.
+export function formatWhen(startDate, endDate, ctx, format) {
+  const start = dateParts(startDate, ctx);
+  const startDay = dayLabel(start, ctx);
+  const full = (parts) => `${parts.weekday}, ${parts.date}/${parts.year}`;
+  let day = startDay;
+  let time = start.time;
+  let long = `${full(start)} · ${start.time}`;
+  if (endDate) {
+    const end = dateParts(endDate, ctx);
+    time = `${start.time} → ${end.time}`;
+    if (end.dayNumber !== start.dayNumber) {
+      const endDay = dayLabel(end, ctx);
+      const relative = (label, parts) => label !== parts.date && !label.includes(',');
+      if (relative(startDay, start) || relative(endDay, end)) day = `${startDay} → ${relative(endDay, end) ? endDay.toLowerCase() : endDay}`;
+      else day = start.date.slice(3) === end.date.slice(3) ? `${start.date.slice(0, 2)} → ${end.date}` : `${start.date} → ${end.date}`;
+      long = `${full(start)} · ${start.time} → ${full(end)} · ${end.time}`;
+    } else {
+      long = `${full(start)} · ${start.time} → ${end.time}`;
+    }
+  }
+  if (format === 'date') return { day, time: '', text: day, long: full(start) };
+  if (format === 'time') return { day: '', time, text: time, long };
+  return { day, time, text: `${day} ${time}`, long };
 }
 
 // Minutes by default, so 106 reads "1 h 46" and 30 reads "30 min".
@@ -197,17 +248,11 @@ export function formatCell(row, column, ctx) {
     case 'range': {
       const date = toDate(value);
       if (!date) return { ...cell, text: String(value) };
-      const start = dateParts(date, ctx);
-      if (format === 'date') cell.text = start.date;
-      else if (format === 'time') cell.text = start.time;
-      else cell.text = `${start.date} ${start.time}`;
-      if (format === 'range' && column.end) {
-        const endDate = toDate(row[column.end]);
-        if (endDate) {
-          const end = dateParts(endDate, ctx);
-          cell.text += end.date === start.date ? `–${end.time}` : `–${end.date} ${end.time}`;
-        }
-      }
+      const endDate = format === 'range' && column.end ? toDate(row[column.end]) : null;
+      const when = formatWhen(date, endDate, ctx, format);
+      cell.when = { day: when.day, time: when.time };
+      cell.text = when.text;
+      cell.long = when.long;
       break;
     }
     case 'map': {
@@ -281,6 +326,10 @@ const STYLES = `
   .dot { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; }
   .pill { padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 500; display: inline-flex; align-items: center; gap: 4px; }
   .cell ha-icon { --mdc-icon-size: 16px; flex: 0 0 auto; }
+  .when { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .when span { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .when ha-icon, .cell .when ha-icon { --mdc-icon-size: 13px; color: var(--secondary-text-color); }
+  .row-card .when { flex-direction: row; flex-wrap: wrap; gap: 2px 12px; }
   .stack { display: flex; flex-direction: column; gap: 3px; min-width: 64px; }
   .bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: rgba(127, 127, 127, 0.2); }
   .bar span { height: 100%; }
@@ -373,7 +422,12 @@ class AttributeTableCard extends ElementBase {
     };
   }
 
-  _cellHtml(cell, column) {
+  _cellHtml(cell, column, full = false) {
+    if (cell.when && full) return `<span class="txt">${escapeHtml(cell.long || cell.text)}</span>`;
+    if (cell.when) {
+      const line = (icon, text) => (text ? `<span><ha-icon icon="${icon}"></ha-icon>${escapeHtml(text)}</span>` : '');
+      return `<span class="when">${line('mdi:calendar-blank-outline', cell.when.day)}${line('mdi:clock-outline', cell.when.time)}</span>`;
+    }
     if (cell.segments) {
       const total = cell.segments.reduce((sum, segment) => sum + segment.value, 0) || 1;
       const bar = cell.segments
@@ -402,7 +456,7 @@ class AttributeTableCard extends ElementBase {
       .map((row, r) => columns
         .map((column) => {
           const cell = formatCell(row, column, ctx);
-          return `<div class="cell ${cellAlign(column)}" data-r="${r}" title="${escapeHtml(cell.text || '')}">${this._cellHtml(cell, column)}</div>`;
+          return `<div class="cell ${cellAlign(column)}" data-r="${r}" title="${escapeHtml(cell.long || cell.text || '')}">${this._cellHtml(cell, column)}</div>`;
         })
         .join(''))
       .join('');
@@ -481,7 +535,7 @@ class AttributeTableCard extends ElementBase {
     const primary = this._config.columns.find((column) => column.primary) || this._config.columns[0];
     const title = primary ? formatCell(row, primary, ctx).text : '';
     const items = columns
-      .map((column) => `<dt>${escapeHtml(column.name ?? column.field ?? '')}</dt><dd>${this._cellHtml(formatCell(row, column, ctx), column)}</dd>`)
+      .map((column) => `<dt>${escapeHtml(column.name ?? column.field ?? '')}</dt><dd>${this._cellHtml(formatCell(row, column, ctx), column, true)}</dd>`)
       .join('');
     const overlay = document.createElement('div');
     overlay.className = 'overlay';

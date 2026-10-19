@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0 - 2026-10-19
+
+- Dates are a day line and a time line with calendar and clock icons, so which number is the day and
+  which the hour reads at a glance: *Today*, *Yesterday*, the weekday in the last week, then the date
+- Ranges show `start → end` and name both days when they cross midnight; the row details carry the
+  full dates with the year
+
 ## 0.1.2 - 2026-10-17
 
 - Centred columns centre their header too; only the cells moved before
