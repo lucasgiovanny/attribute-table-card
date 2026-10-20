@@ -64,6 +64,10 @@ test('cells format numbers, ranges, maps and stacks', () => {
   };
   assert.equal(formatCell(row, { field: 'km', format: 'number', decimals: 1, unit: 'km' }, ctx).text, '9,9 km');
   assert.equal(formatCell(row, { field: 'pct', format: 'percent' }, ctx).text, '72%');
+  assert.equal(formatCell({ pct: 6 }, { field: 'pct', format: 'percent', decimals: 1 }, ctx).text, '6%');
+  assert.equal(formatCell({ pct: 0.24, est: true }, { field: 'pct', format: 'percent', decimals: 1, approximate: 'est' }, ctx).text, '~0,2%');
+  assert.equal(formatCell({ pct: 6, est: false }, { field: 'pct', format: 'percent', approximate: 'est' }, ctx).text, '6%');
+  assert.equal(formatCell({ est: true }, { field: 'pct', format: 'percent', approximate: 'est' }, ctx).text, '—');
   assert.equal(formatCell(row, { field: 'minutes', format: 'duration' }, ctx).text, '1 h 46');
   const range = formatCell(row, { field: 'start', format: 'range', end: 'end' }, ctx);
   assert.deepEqual(range.when, { day: '16/10', time: '19:29 → 19:47' });

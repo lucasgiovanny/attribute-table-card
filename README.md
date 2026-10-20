@@ -87,7 +87,8 @@ columns:
 | `field` | Field of the row |
 | `name` | Header text |
 | `format` | `text` (default), `number`, `percent`, `duration`, `date`, `time`, `datetime`, `range`, `template`, `map`, `stack`, `image` |
-| `decimals`, `unit` | For `number`; `percent` adds `%` itself |
+| `decimals`, `unit` | For `number`; `percent` adds `%` itself and shows at most `decimals` (6%, 0,2%) |
+| `approximate` | A field of the row: when it is true, the value shows with `~` before it |
 | `unit_in` | For `duration`: the field is in `min` (default), `s` or `h` |
 | `end` | For `range`: the field with the end |
 | `template` | For `template`: `{soc_start:0}→{soc_end:0}%` fills fields, `:N` sets decimals |

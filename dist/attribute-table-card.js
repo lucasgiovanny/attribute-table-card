@@ -7,7 +7,7 @@
 
 const CARD_TYPE = 'attribute-table-card';
 const EDITOR_TYPE = 'attribute-table-card-editor';
-const CARD_VERSION = '0.4.0';
+const CARD_VERSION = '0.5.0';
 const NARROW_PX = 420;
 // Lets the helpers be imported by the Node tests, where there is no DOM.
 const ElementBase = typeof HTMLElement === 'undefined' ? class {} : HTMLElement;
@@ -116,6 +116,13 @@ function numberFormat(ctx, decimals) {
 function formatNumber(value, ctx, decimals) {
   const n = Number(value);
   return Number.isFinite(n) ? numberFormat(ctx, decimals).format(n) : '';
+}
+
+// Percents are mostly whole, so `decimals` is the most they show: 6% and 0,2%, never 6,0%.
+function formatPercent(value, ctx, decimals) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '';
+  return new Intl.NumberFormat(ctx.locale || 'en', { maximumFractionDigits: decimals ?? 0 }).format(n);
 }
 
 function withUnit(text, unit) {
@@ -237,7 +244,7 @@ export function formatCell(row, column, ctx) {
       cell.text = withUnit(formatNumber(value, ctx, column.decimals), column.unit);
       break;
     case 'percent':
-      cell.text = withUnit(formatNumber(value, ctx, column.decimals ?? 0), '%');
+      cell.text = withUnit(formatPercent(value, ctx, column.decimals), '%');
       break;
     case 'duration':
       cell.text = formatDuration(value, column.unit_in);
@@ -276,6 +283,7 @@ export function formatCell(row, column, ctx) {
     default:
       cell.text = withUnit(String(value), column.unit);
   }
+  if (column.approximate && row[column.approximate] && cell.text) cell.text = `~${cell.text}`;
   return cell;
 }
 

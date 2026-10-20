@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.0 - 2026-10-20
+
+- `approximate` column option: a row field that, when true, puts `~` before the value
+- `percent` shows at most `decimals`, so whole values stay whole (6%, 0,2%)
+
 ## 0.4.0 - 2026-10-20
 
 - `image` format: a picture in the row details, from the field itself or, with `source`, from the
