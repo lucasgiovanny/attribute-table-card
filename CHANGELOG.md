@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0 - 2026-10-20
+
+- `image` format: a picture in the row details, from the field itself or, with `source`, from the
+  URL in another entity's attribute that matches the row — such as the map of each Dreame cleaning,
+  whose links carry a token that rotates. In the table it is an icon
+
 ## 0.3.0 - 2026-10-19
 
 - Dates are a day line and a time line with calendar and clock icons, so which number is the day and

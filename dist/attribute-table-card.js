@@ -7,7 +7,7 @@
 
 const CARD_TYPE = 'attribute-table-card';
 const EDITOR_TYPE = 'attribute-table-card-editor';
-const CARD_VERSION = '0.3.0';
+const CARD_VERSION = '0.4.0';
 const NARROW_PX = 420;
 // Lets the helpers be imported by the Node tests, where there is no DOM.
 const ElementBase = typeof HTMLElement === 'undefined' ? class {} : HTMLElement;
@@ -255,6 +255,13 @@ export function formatCell(row, column, ctx) {
       cell.long = when.long;
       break;
     }
+    case 'image': {
+      const url = imageUrl(value, column, ctx);
+      if (!url) return { ...cell, text: column.empty ?? '—' };
+      cell.image = url;
+      cell.text = '';
+      break;
+    }
     case 'map': {
       const entry = (column.map || {})[String(value)];
       if (entry && typeof entry === 'object') {
@@ -270,6 +277,20 @@ export function formatCell(row, column, ctx) {
       cell.text = withUnit(String(value), column.unit);
   }
   return cell;
+}
+
+// An image is the field itself (a URL) or, with `source`, the URL in another entity's attribute that
+// contains `match` filled with the row — such as Dreame's cleaning history maps, whose access token rotates.
+export function imageUrl(value, column, ctx = {}) {
+  const source = column.source;
+  if (!source) return typeof value === 'string' && value ? value : null;
+  const stateObj = ctx.states?.[source.entity];
+  const holder = source.attribute ? stateObj?.attributes?.[source.attribute] : stateObj?.attributes?.entity_picture;
+  const candidates = typeof holder === 'string' ? [holder] : holder && typeof holder === 'object' ? Object.values(holder) : [];
+  const needle = String(source.match ?? '{value}').replace('{value}', String(value ?? ''));
+  // The match must end where a word does, so v=1 does not find v=1792450948.
+  const pattern = new RegExp(`${needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w])`);
+  return candidates.find((candidate) => typeof candidate === 'string' && pattern.test(candidate)) || null;
 }
 
 export function cellAlign(column) {
@@ -320,6 +341,8 @@ const STYLES = `
   .dialog dd { margin: 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; overflow-wrap: anywhere; }
   .dialog dd .txt { overflow: visible; white-space: normal; }
   .dialog dd ha-icon { --mdc-icon-size: 16px; }
+  .dialog .wide { grid-column: 1 / -1; }
+  .dialog img.image { width: 100%; height: auto; border-radius: 12px; display: block; }
   .dialog .actions { display: flex; justify-content: flex-end; margin-top: 14px; }
   .end { justify-content: flex-end; text-align: end; font-variant-numeric: tabular-nums; }
   .center { justify-content: center; text-align: center; }
@@ -418,11 +441,13 @@ class AttributeTableCard extends ElementBase {
     return {
       lang: resolveLanguage(hass),
       locale: hass.locale?.language || hass.language || 'en',
-      timeZone: hass.locale?.time_zone === 'local' ? undefined : hass.config?.time_zone
+      timeZone: hass.locale?.time_zone === 'local' ? undefined : hass.config?.time_zone,
+      states: hass.states
     };
   }
 
   _cellHtml(cell, column, full = false) {
+    if (cell.image) return full ? `<img class="image" src="${escapeHtml(cell.image)}" alt="">` : '<ha-icon icon="mdi:image-outline"></ha-icon>';
     if (cell.when && full) return `<span class="txt">${escapeHtml(cell.long || cell.text)}</span>`;
     if (cell.when) {
       const line = (icon, text) => (text ? `<span><ha-icon icon="${icon}"></ha-icon>${escapeHtml(text)}</span>` : '');
@@ -535,7 +560,12 @@ class AttributeTableCard extends ElementBase {
     const primary = this._config.columns.find((column) => column.primary) || this._config.columns[0];
     const title = primary ? formatCell(row, primary, ctx).text : '';
     const items = columns
-      .map((column) => `<dt>${escapeHtml(column.name ?? column.field ?? '')}</dt><dd>${this._cellHtml(formatCell(row, column, ctx), column, true)}</dd>`)
+      .map((column) => {
+        const cell = formatCell(row, column, ctx);
+        // An image takes the dialog's full width, its label above it.
+        const wide = cell.image ? ' class="wide"' : '';
+        return `<dt${wide}>${escapeHtml(column.name ?? column.field ?? '')}</dt><dd${wide}>${this._cellHtml(cell, column, true)}</dd>`;
+      })
       .join('');
     const overlay = document.createElement('div');
     overlay.className = 'overlay';

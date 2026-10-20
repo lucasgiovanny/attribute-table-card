@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   formatWhen,
-  extractRows, sortRows, toDate, formatDuration, fillTemplate, pickColor, formatCell, cellAlign, resolveLanguage, t, detailColumns
+  extractRows, sortRows, toDate, formatDuration, fillTemplate, pickColor, formatCell, cellAlign, resolveLanguage, t, detailColumns, imageUrl
 } from '../dist/attribute-table-card.js';
 
 const ctx = { lang: 'pt', locale: 'pt-PT', timeZone: 'Europe/Lisbon', now: new Date('2026-11-30T12:00:00Z') };
@@ -122,4 +122,17 @@ test('a range across midnight names both days', () => {
   assert.equal(old.day, '02 → 03/10');
   const months = formatWhen(new Date('2026-09-30T21:00:00Z'), new Date('2026-10-01T07:00:00Z'), near, 'range');
   assert.equal(months.day, '30/09 → 01/10');
+});
+
+test('an image is the field itself or the matching URL in another entity attribute', () => {
+  const states = { 'camera.map': { attributes: { cleaning_history_picture: {
+    '1: 10/20 00:02': '/api/history?token=a&index=1&v=1792450948',
+    '2: 10/19 00:00': '/api/history?token=a&index=2&v=1792364416'
+  } } } };
+  const column = { field: 'timestamp', format: 'image', source: { entity: 'camera.map', attribute: 'cleaning_history_picture', match: 'v={value}' } };
+  assert.equal(imageUrl(1792364416, column, { states }), '/api/history?token=a&index=2&v=1792364416');
+  assert.equal(formatCell({ timestamp: 1792450948 }, column, { ...ctx, states }).image, '/api/history?token=a&index=1&v=1792450948');
+  assert.equal(formatCell({ timestamp: 1 }, column, { ...ctx, states }).text, '—');
+  assert.equal(formatCell({ url: '/local/a.png' }, { field: 'url', format: 'image' }, ctx).image, '/local/a.png');
+  assert.equal(imageUrl(1, column, {}), null);
 });

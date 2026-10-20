@@ -86,13 +86,14 @@ columns:
 |---|---|
 | `field` | Field of the row |
 | `name` | Header text |
-| `format` | `text` (default), `number`, `percent`, `duration`, `date`, `time`, `datetime`, `range`, `template`, `map`, `stack` |
+| `format` | `text` (default), `number`, `percent`, `duration`, `date`, `time`, `datetime`, `range`, `template`, `map`, `stack`, `image` |
 | `decimals`, `unit` | For `number`; `percent` adds `%` itself |
 | `unit_in` | For `duration`: the field is in `min` (default), `s` or `h` |
 | `end` | For `range`: the field with the end |
 | `template` | For `template`: `{soc_start:0}→{soc_end:0}%` fills fields, `:N` sets decimals |
 | `map` | For `map`: value → text, or value → `{ label, icon, color }` |
 | `segments` | For `stack`: `[{ field, color, label }]`, drawn as a small bar of shares with the numbers under it; `unit` (e.g. `%`) follows each number |
+| `source` | For `image`: `{ entity, attribute, match }` takes the URL from another entity's attribute (a URL or an object of URLs) that contains `match`, where `{value}` is the field — e.g. Dreame's cleaning history maps, `match: "v={value}"` on `timestamp`. Without `source` the field itself is the URL. In the table an image is an icon; in the row details it fills the width |
 | `colors` | Steps `[{ max, color }, …, { color }]`: the first whose `max` the value does not exceed gives a dot (or a pill with `style: pill`) |
 | `align` | `start`, `center` or `end`. Numbers, percents and durations default to `end` |
 | `primary` | On narrow cards, the column used as each card's title (first column by default) |
